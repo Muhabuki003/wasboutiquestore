@@ -1,3 +1,6 @@
 /*
-/*
-  Content-Security-Policy: default-src * 'unsafe-inline' 'unsafe-eval' data: blob:
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://sandbox.web.squarecdn.com 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://sandbox.web.squarecdn.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://square-fonts-production-f.squarecdn.com https://d1g145x70srn7h.cloudfront.net; connect-src 'self' https://was-boutique-square.adrienmuhabukibusiness.workers.dev https://pci-connect.squareupsandbox.com https://o160250.ingest.sentry.io; frame-src 'self' https://sandbox.web.squarecdn.com; img-src 'self' data: blob: https:;
+  Access-Control-Allow-Origin: *
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
