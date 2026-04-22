@@ -673,6 +673,17 @@
       }
     }
 
+       async function destroyCard() {
+      if (squareCard) {
+        try {
+          await squareCard.destroy();
+        } catch (e) {
+          // ignore destroy errors
+        }
+        squareCard = null;
+      }
+    }
+
     async function mountCard() {
       if (squareInitError) {
         showDebug('Skipping mount - init failed: ' + squareInitError);
@@ -685,13 +696,11 @@
         return;
       }
       
-      if (squareCard) {
-        showDebug('Card already mounted');
-        return;
-      }
+      // Always destroy old card first
+      await destroyCard();
       
       const container = document.getElementById('card-container');
-      container.classList.remove('loading');
+      container.classList.remove('loading', 'error');
       container.innerHTML = '';
       clearCardError();
       
@@ -732,7 +741,6 @@
       }
     }
 
-    /* ── CHECKOUT ── */
     function openCheckout() {
       closeCart();
       const summary = document.getElementById('orderSummaryMini');
@@ -744,77 +752,20 @@
         `<div class="order-summary-row" style="color:var(--cream);font-weight:500;border-top:1px solid var(--border);padding-top:12px;margin-top:8px">
           <span>Total</span><span>${fmt(cartTotal())}</span>
         </div>`;
+      
       document.getElementById('checkoutModal').classList.add('open');
       
-      // Reset and mount card
-      document.getElementById('card-container').classList.add('loading');
-      document.getElementById('card-container').textContent = 'Loading secure card form...';
+      // Reset UI
+      const container = document.getElementById('card-container');
+      container.classList.add('loading');
+      container.textContent = 'Loading secure card form...';
       document.getElementById('squareDebug').textContent = '';
       document.getElementById('squareDebug').style.display = 'none';
       clearCardError();
       
-      // Small delay to let modal render before mounting
-      setTimeout(() => mountCard(), 100);
+      // Longer delay + ensure modal is fully rendered
+      setTimeout(() => mountCard(), 300);
     }
-
-    document.getElementById('payBtn').addEventListener('click', async () => {
-      const name = document.getElementById('custName').value.trim();
-      const email = document.getElementById('custEmail').value.trim();
-      const errorEl = document.getElementById('payError');
-      errorEl.classList.remove('visible');
-      
-      if (!name || !email) { 
-        errorEl.textContent = 'Please enter your name and email address.'; 
-        errorEl.classList.add('visible'); 
-        return; 
-      }
-      if (!email.includes('@')) { 
-        errorEl.textContent = 'Please enter a valid email address.'; 
-        errorEl.classList.add('visible'); 
-        return; 
-      }
-      if (!squareCard) { 
-        errorEl.textContent = 'Payment form not loaded. Please refresh the page.'; 
-        errorEl.classList.add('visible'); 
-        return; 
-      }
-      
-      const btn = document.getElementById('payBtn');
-      btn.classList.add('loading'); 
-      btn.textContent = 'Processing...';
-      
-      try {
-        const result = await squareCard.tokenize();
-        if (result.status !== 'OK') throw new Error(result.errors?.[0]?.message || 'Card tokenization failed');
-        
-        const res = await fetch(`${CONFIG.WORKER_URL}/api/checkout`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sourceId: result.token, 
-            customerName: name, 
-            email,
-            items: cart.map(i => ({ name: i.name, price: i.price, quantity: i.quantity, variationId: i.variationId })),
-          }),
-        });
-        
-        const data = await res.json();
-        if (!res.ok || !data.success) throw new Error(data.details?.[0]?.detail || data.error || 'Payment failed.');
-        
-        document.getElementById('checkoutModal').classList.remove('open');
-        showSuccess(data, email);
-        cart = []; 
-        updateCartUI();
-        if (squareCard) { squareCard.destroy(); squareCard = null; }
-      } catch (err) {
-        errorEl.textContent = err.message; 
-        errorEl.classList.add('visible');
-      } finally {
-        btn.classList.remove('loading');
-        btn.innerHTML = 'Pay Now <div class="btn-spinner"></div>';
-      }
-    });
-
     function showSuccess(data, email) {
       document.getElementById('confirmEmail').textContent = email;
       const box = document.getElementById('orderDetailsBox');
