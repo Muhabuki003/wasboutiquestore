@@ -492,120 +492,149 @@
 
   <div class="toast" id="toast"></div>
 
-  <script>
-    /* ── CONFIG ── */
-    const CONFIG = {
+   <script>
+    /* -- CONFIG -- */
+    var CONFIG = {
       APP_ID: 'sandbox-sq0idb-_SjxqPjcyJBH1MmWVjshIw',
       LOCATION_ID: 'LDHGFHRWZ33x7',
       WORKER_URL: 'https://was-boutique-square.adrienmuhabukibusiness.workers.dev',
     };
 
-    /* ── STATE ── */
-    let cart = [];
-    let squareCard = null;
-    let squarePayments = null;
-    let squareInitError = null;
-    let cardMountAttempts = 0;
+    /* -- STATE -- */
+    var cart = [];
+    var squareCard = null;
+    var squarePayments = null;
+    var squareInitError = null;
+    var cardMountAttempts = 0;
 
-    /* ── UTILS ── */
-    const fmt = (cents) =>
-      new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
+    /* -- UTILS -- */
+    function fmt(cents) {
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
+    }
 
-    function showToast(msg, duration = 2500) {
-      const t = document.getElementById('toast');
+    function showToast(msg, duration) {
+      duration = duration || 2500;
+      var t = document.getElementById('toast');
       t.textContent = msg;
       t.classList.add('show');
-      setTimeout(() => t.classList.remove('show'), duration);
+      setTimeout(function() { t.classList.remove('show'); }, duration);
     }
 
     function showDebug(msg) {
-      const el = document.getElementById('squareDebug');
+      var el = document.getElementById('squareDebug');
       el.style.display = 'block';
       el.textContent += msg + '\n';
     }
 
     function showCardError(msg) {
-      const el = document.getElementById('cardErrorDisplay');
+      var el = document.getElementById('cardErrorDisplay');
       el.textContent = msg;
       el.classList.add('visible');
       document.getElementById('card-container').classList.add('error');
     }
 
     function clearCardError() {
-      const el = document.getElementById('cardErrorDisplay');
+      var el = document.getElementById('cardErrorDisplay');
       el.classList.remove('visible');
       document.getElementById('card-container').classList.remove('error');
     }
 
-    /* ── CART ── */
-    function cartTotal() { return cart.reduce((s, i) => s + i.price * i.quantity, 0); }
+    /* -- CART -- */
+    function cartTotal() { 
+      return cart.reduce(function(s, i) { return s + i.price * i.quantity; }, 0); 
+    }
 
     function updateCartUI() {
-      const count = cart.reduce((s, i) => s + i.quantity, 0);
+      var count = cart.reduce(function(s, i) { return s + i.quantity; }, 0);
       document.getElementById('cartCount').textContent = count;
-      const total = cartTotal();
+      var total = cartTotal();
       document.getElementById('subtotalAmt').textContent = fmt(total);
       document.getElementById('totalAmt').textContent = fmt(total);
       document.getElementById('checkoutBtn').disabled = cart.length === 0;
-      const container = document.getElementById('cartItems');
+      var container = document.getElementById('cartItems');
       if (cart.length === 0) {
         container.innerHTML = '<div class="cart-empty">Your bag is empty</div>';
         return;
       }
-      container.innerHTML = cart.map((item, idx) => `
-        <div class="cart-item">
-          ${item.imageUrl ? `<img class="cart-item-img" src="${item.imageUrl}" alt="${item.name}" />` : `<div class="cart-item-img-placeholder"></div>`}
-          <div class="cart-item-info">
-            <div class="cart-item-name">${item.name}</div>
-            ${item.variation !== 'Default' ? `<div class="cart-item-variant">${item.variation}</div>` : ''}
-            <div class="cart-item-qty">
-              <button class="qty-btn" onclick="changeQty(${idx}, -1)">−</button>
-              <span class="qty-num">${item.quantity}</span>
-              <button class="qty-btn" onclick="changeQty(${idx}, 1)">+</button>
-              <span style="font-size:10px;color:var(--muted);margin-left:4px">${fmt(item.price)} each</span>
-            </div>
-            <button class="remove-btn" onclick="removeItem(${idx})">Remove</button>
-          </div>
-          <div class="cart-item-price">${fmt(item.price * item.quantity)}</div>
-        </div>`).join('');
+      container.innerHTML = cart.map(function(item, idx) {
+        return '<div class="cart-item">' +
+          (item.imageUrl ? '<img class="cart-item-img" src="' + item.imageUrl + '" alt="' + item.name + '" />' : '<div class="cart-item-img-placeholder"></div>') +
+          '<div class="cart-item-info">' +
+            '<div class="cart-item-name">' + item.name + '</div>' +
+            (item.variation !== 'Default' ? '<div class="cart-item-variant">' + item.variation + '</div>' : '') +
+            '<div class="cart-item-qty">' +
+              '<button class="qty-btn" onclick="changeQty(' + idx + ', -1)">-</button>' +
+              '<span class="qty-num">' + item.quantity + '</span>' +
+              '<button class="qty-btn" onclick="changeQty(' + idx + ', 1)">+</button>' +
+              '<span style="font-size:10px;color:var(--muted);margin-left:4px">' + fmt(item.price) + ' each</span>' +
+            '</div>' +
+            '<button class="remove-btn" onclick="removeItem(' + idx + ')">Remove</button>' +
+          '</div>' +
+          '<div class="cart-item-price">' + fmt(item.price * item.quantity) + '</div>' +
+        '</div>';
+      }).join('');
     }
 
-    function changeQty(idx, delta) { cart[idx].quantity = Math.max(1, cart[idx].quantity + delta); updateCartUI(); }
-    function removeItem(idx) { cart.splice(idx, 1); updateCartUI(); }
+    function changeQty(idx, delta) { 
+      cart[idx].quantity = Math.max(1, cart[idx].quantity + delta); 
+      updateCartUI(); 
+    }
+    
+    function removeItem(idx) { 
+      cart.splice(idx, 1); 
+      updateCartUI(); 
+    }
 
     function addToCart(product, variationIdx) {
-      const v = product.variations[variationIdx] || product.variations[0];
-      const existing = cart.find(i => i.id === product.id && i.variationId === v.id);
-      if (existing) { existing.quantity++; }
-      else {
-        cart.push({ id: product.id, variationId: v.id, name: product.name, variation: v.name, price: v.price, quantity: 1, imageUrl: product.imageUrl });
+      var v = product.variations[variationIdx] || product.variations[0];
+      var existing = cart.find(function(i) { return i.id === product.id && i.variationId === v.id; });
+      if (existing) { 
+        existing.quantity++; 
+      } else {
+        cart.push({ 
+          id: product.id, 
+          variationId: v.id, 
+          name: product.name, 
+          variation: v.name, 
+          price: v.price, 
+          quantity: 1, 
+          imageUrl: product.imageUrl 
+        });
       }
-      updateCartUI(); openCart(); showToast('Added to bag');
+      updateCartUI(); 
+      openCart(); 
+      showToast('Added to bag');
     }
 
-    /* ── DRAWER / MODAL ── */
+    /* -- DRAWER / MODAL -- */
     function openCart() {
       document.getElementById('cartDrawer').classList.add('open');
       document.getElementById('drawerOverlay').classList.add('open');
     }
+    
     function closeCart() {
       document.getElementById('cartDrawer').classList.remove('open');
       document.getElementById('drawerOverlay').classList.remove('open');
     }
+    
     document.getElementById('cartToggle').addEventListener('click', openCart);
     document.getElementById('cartClose').addEventListener('click', closeCart);
     document.getElementById('drawerOverlay').addEventListener('click', closeCart);
     document.getElementById('checkoutBtn').addEventListener('click', openCheckout);
-    document.getElementById('checkoutClose').addEventListener('click', () => document.getElementById('checkoutModal').classList.remove('open'));
-    document.getElementById('continueShopping').addEventListener('click', () => document.getElementById('successModal').classList.remove('open'));
+    document.getElementById('checkoutClose').addEventListener('click', function() {
+      document.getElementById('checkoutModal').classList.remove('open');
+    });
+    document.getElementById('continueShopping').addEventListener('click', function() {
+      document.getElementById('successModal').classList.remove('open');
+    });
 
-    /* ── PRODUCTS ── */
+    /* -- PRODUCTS -- */
     async function loadProducts() {
       try {
-        const res = await fetch(`${CONFIG.WORKER_URL}/api/catalog`);
-        const data = await res.json();
-        const state = document.getElementById('productsState');
-        const grid = document.getElementById('productsGrid');
+        var res = await fetch(CONFIG.WORKER_URL + '/api/catalog');
+        var data = await res.json();
+        var state = document.getElementById('productsState');
+        var grid = document.getElementById('productsGrid');
         if (!data.items || data.items.length === 0) {
           state.innerHTML = '<span>No products found in Square catalog</span>';
           return;
@@ -613,30 +642,38 @@
         state.style.display = 'none';
         grid.style.display = 'grid';
         window.__catalog = data.items;
-        grid.innerHTML = data.items.map((item, i) => {
-          const multiVariant = item.variations.length > 1;
-          const selectId = `var-${i}`;
-          return `
-            <div class="product-card">
-              ${item.imageUrl
-                ? `<img class="product-img" src="${item.imageUrl}" alt="${item.name}" loading="lazy" />`
-                : `<div class="product-img-placeholder"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>`}
-              <div class="product-info">
-                <div class="product-name">${item.name}</div>
-                ${item.description ? `<div class="product-desc">${item.description}</div>` : ''}
-                ${multiVariant ? `<select class="variation-select" id="${selectId}">${item.variations.map((v, vi) => `<option value="${vi}">${v.name} — ${fmt(v.price)}</option>`).join('')}</select>` : ''}
-                <div class="product-footer">
-                  <span class="product-price" id="price-${i}">${fmt(item.variations[0]?.price || 0)}</span>
-                  <button class="add-to-cart" onclick="addToCart(window.__catalog[${i}], ${multiVariant ? `parseInt(document.getElementById('${selectId}').value)` : 0})">Add to Bag</button>
-                </div>
-              </div>
-            </div>`;
+        grid.innerHTML = data.items.map(function(item, i) {
+          var multiVariant = item.variations.length > 1;
+          var selectId = 'var-' + i;
+          var selectHtml = '';
+          if (multiVariant) {
+            selectHtml = '<select class="variation-select" id="' + selectId + '">' +
+              item.variations.map(function(v, vi) {
+                return '<option value="' + vi + '">' + v.name + ' — ' + fmt(v.price) + '</option>';
+              }).join('') +
+            '</select>';
+          }
+          return '<div class="product-card">' +
+            (item.imageUrl
+              ? '<img class="product-img" src="' + item.imageUrl + '" alt="' + item.name + '" loading="lazy" />'
+              : '<div class="product-img-placeholder"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>') +
+            '<div class="product-info">' +
+              '<div class="product-name">' + item.name + '</div>' +
+              (item.description ? '<div class="product-desc">' + item.description + '</div>' : '') +
+              selectHtml +
+              '<div class="product-footer">' +
+                '<span class="product-price" id="price-' + i + '">' + fmt(item.variations[0] ? item.variations[0].price : 0) + '</span>' +
+                '<button class="add-to-cart" onclick="addToCart(window.__catalog[' + i + '], ' + (multiVariant ? 'parseInt(document.getElementById(\'' + selectId + '\').value)' : 0) + ')">Add to Bag</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>';
         }).join('');
-        data.items.forEach((item, i) => {
+        
+        data.items.forEach(function(item, i) {
           if (item.variations.length > 1) {
-            const sel = document.getElementById(`var-${i}`);
-            if (sel) sel.addEventListener('change', () => {
-              document.getElementById(`price-${i}`).textContent = fmt(item.variations[parseInt(sel.value)].price);
+            var sel = document.getElementById('var-' + i);
+            if (sel) sel.addEventListener('change', function() {
+              document.getElementById('price-' + i).textContent = fmt(item.variations[parseInt(sel.value)].price);
             });
           }
         });
@@ -646,18 +683,18 @@
       }
     }
 
-    /* ── SQUARE ── */
+    /* -- SQUARE -- */
     async function initSquare() {
       showDebug('Checking Square SDK...');
       
       if (!window.Square) {
-        squareInitError = 'Square SDK not loaded. Check internet connection or CSP headers.';
+        squareInitError = 'Square SDK not loaded.';
         showDebug('ERROR: window.Square is undefined');
-        showCardError('Payment system unavailable. Please refresh the page.');
+        showCardError('Payment system unavailable. Please refresh.');
         return;
       }
       
-      showDebug('Square SDK found: ' + typeof window.Square);
+      showDebug('Square SDK found');
       showDebug('App ID: ' + CONFIG.APP_ID);
       showDebug('Location ID: ' + CONFIG.LOCATION_ID);
       
@@ -668,7 +705,6 @@
         squareInitError = e.message || 'Unknown Square init error';
         showDebug('ERROR initializing Square: ' + squareInitError);
         showCardError('Payment system error: ' + squareInitError);
-        return;
       }
     }
 
@@ -677,7 +713,7 @@
         try {
           await squareCard.destroy();
         } catch (e) {
-          // ignore destroy errors
+          // ignore
         }
         squareCard = null;
       }
@@ -697,7 +733,7 @@
       
       await destroyCard();
       
-      const container = document.getElementById('card-container');
+      var container = document.getElementById('card-container');
       container.classList.remove('loading', 'error');
       container.innerHTML = '';
       clearCardError();
@@ -732,7 +768,7 @@
         await squareCard.attach('#card-container');
         showDebug('Card form mounted successfully');
       } catch (e) {
-        const msg = e.message || 'Unknown card mount error';
+        var msg = e.message || 'Unknown card mount error';
         showDebug('ERROR mounting card: ' + msg);
         showCardError('Could not load card form: ' + msg);
         squareCard = null;
@@ -741,33 +777,35 @@
 
     function openCheckout() {
       closeCart();
-      const summary = document.getElementById('orderSummaryMini');
-      summary.innerHTML = cart.map(item => `
-        <div class="order-summary-row">
-          <span>${item.name}${item.variation !== 'Default' ? ` — ${item.variation}` : ''} × ${item.quantity}</span>
-          <span>${fmt(item.price * item.quantity)}</span>
-        </div>`).join('') +
-        `<div class="order-summary-row" style="color:var(--cream);font-weight:500;border-top:1px solid var(--border);padding-top:12px;margin-top:8px">
-          <span>Total</span><span>${fmt(cartTotal())}</span>
-        </div>`;
+      var summary = document.getElementById('orderSummaryMini');
+      var summaryHtml = cart.map(function(item) {
+        return '<div class="order-summary-row">' +
+          '<span>' + item.name + (item.variation !== 'Default' ? ' — ' + item.variation : '') + ' × ' + item.quantity + '</span>' +
+          '<span>' + fmt(item.price * item.quantity) + '</span>' +
+        '</div>';
+      }).join('');
+      summaryHtml += '<div class="order-summary-row" style="color:var(--cream);font-weight:500;border-top:1px solid var(--border);padding-top:12px;margin-top:8px">' +
+        '<span>Total</span><span>' + fmt(cartTotal()) + '</span>' +
+      '</div>';
+      summary.innerHTML = summaryHtml;
       
       document.getElementById('checkoutModal').classList.add('open');
       
-      const container = document.getElementById('card-container');
+      var container = document.getElementById('card-container');
       container.classList.add('loading');
       container.textContent = 'Loading secure card form...';
       document.getElementById('squareDebug').textContent = '';
       document.getElementById('squareDebug').style.display = 'none';
       clearCardError();
       
-      setTimeout(() => mountCard(), 300);
+      setTimeout(function() { mountCard(); }, 300);
     }
 
-    /* ── PAYMENT PROCESSING ── */
-    document.getElementById('payBtn').addEventListener('click', async () => {
-      const name = document.getElementById('custName').value.trim();
-      const email = document.getElementById('custEmail').value.trim();
-      const errorEl = document.getElementById('payError');
+    /* -- PAYMENT PROCESSING -- */
+    document.getElementById('payBtn').addEventListener('click', async function() {
+      var name = document.getElementById('custName').value.trim();
+      var email = document.getElementById('custEmail').value.trim();
+      var errorEl = document.getElementById('payError');
       errorEl.classList.remove('visible');
       
       if (!name || !email) { 
@@ -781,32 +819,34 @@
         return; 
       }
       if (!squareCard) { 
-        errorEl.textContent = 'Payment form not loaded. Please refresh the page.'; 
+        errorEl.textContent = 'Payment form not loaded. Please refresh.'; 
         errorEl.classList.add('visible'); 
         return; 
       }
       
-      const btn = document.getElementById('payBtn');
+      var btn = document.getElementById('payBtn');
       btn.classList.add('loading'); 
       btn.textContent = 'Processing...';
       
       try {
-        const result = await squareCard.tokenize();
-        if (result.status !== 'OK') throw new Error(result.errors?.[0]?.message || 'Card tokenization failed');
+        var result = await squareCard.tokenize();
+        if (result.status !== 'OK') throw new Error((result.errors && result.errors[0] && result.errors[0].message) || 'Card tokenization failed');
         
-        const res = await fetch(`${CONFIG.WORKER_URL}/api/checkout`, {
+        var res = await fetch(CONFIG.WORKER_URL + '/api/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             sourceId: result.token, 
             customerName: name, 
-            email,
-            items: cart.map(i => ({ name: i.name, price: i.price, quantity: i.quantity, variationId: i.variationId })),
+            email: email,
+            items: cart.map(function(i) { 
+              return { name: i.name, price: i.price, quantity: i.quantity, variationId: i.variationId };
+            }),
           }),
         });
         
-        const data = await res.json();
-        if (!res.ok || !data.success) throw new Error(data.details?.[0]?.detail || data.error || 'Payment failed.');
+        var data = await res.json();
+        if (!res.ok || !data.success) throw new Error((data.details && data.details[0] && data.details[0].detail) || data.error || 'Payment failed.');
         
         document.getElementById('checkoutModal').classList.remove('open');
         showSuccess(data, email);
@@ -824,22 +864,34 @@
 
     function showSuccess(data, email) {
       document.getElementById('confirmEmail').textContent = email;
-      const box = document.getElementById('orderDetailsBox');
-      box.innerHTML = [
-        ['Order ID', `#${data.orderId?.slice(-8).toUpperCase() || '—'}`],
-        ['Payment', data.paymentId?.slice(-8).toUpperCase() || '—'],
-        ...(data.items || []).map(i => [i.name, fmt(i.total)]),
-        ['Total Charged', fmt(data.total)],
-      ].map(([label, value]) => `<div class="order-details-row"><span class="label">${label}</span><span>${value}</span></div>`).join('');
+      var box = document.getElementById('orderDetailsBox');
+      
+      var html = '';
+      
+      var orderId = data.orderId ? data.orderId.slice(-8).toUpperCase() : '—';
+      html += '<div class="order-details-row"><span class="label">Order ID</span><span>#' + orderId + '</span></div>';
+      
+      var paymentId = data.paymentId ? data.paymentId.slice(-8).toUpperCase() : '—';
+      html += '<div class="order-details-row"><span class="label">Payment</span><span>' + paymentId + '</span></div>';
+      
+      var items = data.items || [];
+      for (var i = 0; i < items.length; i++) {
+        html += '<div class="order-details-row"><span class="label">' + items[i].name + '</span><span>' + fmt(items[i].total) + '</span></div>';
+      }
+      
+      html += '<div class="order-details-row"><span class="label">Total Charged</span><span>' + fmt(data.total) + '</span></div>';
+      
+      box.innerHTML = html;
+      
       if (data.receiptUrl) { 
-        const l = document.getElementById('receiptLink'); 
+        var l = document.getElementById('receiptLink'); 
         l.href = data.receiptUrl; 
         l.style.display = 'inline-block'; 
       }
       document.getElementById('successModal').classList.add('open');
     }
 
-    /* ── BOOT ── */
+    /* -- BOOT -- */
     initSquare();
     loadProducts();
   </script>
